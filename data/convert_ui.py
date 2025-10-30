@@ -5,7 +5,7 @@ import subprocess
 
 # 指定只转这些ui
 ONLY_LIST = []
-# ONLY_LIST = ['item_helper']
+ONLY_LIST = ['item_helper']
 
 _DIR_ROOT = os.path.dirname(__file__)
 _DIR_ROOT = os.path.dirname(_DIR_ROOT)

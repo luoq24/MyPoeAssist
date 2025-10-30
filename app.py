@@ -61,4 +61,5 @@ if __name__ == "__main__":
     app.setWindowIcon(QIcon(PATH_ICON_APP))
     watcher = AppPoeAssist()
     watcher.show()
+
     sys.exit(app.exec())

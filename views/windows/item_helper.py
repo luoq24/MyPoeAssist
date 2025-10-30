@@ -1,5 +1,4 @@
-import os
-from PyQt6.QtWidgets import QWidget, QMessageBox, QStyle, QFrame, QSpacerItem, QSizePolicy, QSpinBox, QPushButton
+from PyQt6.QtWidgets import QWidget
 
 from models.model import Model
 from views.common.statusInfoMultiLine import StatusInfoMultiLine
@@ -27,9 +26,11 @@ class widgetItenHelper(QWidget):
     def connect_slots(self):
         self.model.clipboard_changed.connect(self.on_clipboard_changed)
         self.model.fenxi_result_notified.connect(self.on_fenxi_result_notified)
+        # self.model.cmd_click_wanted.connect(self.click_mouse_in_main_thread)
 
         self.ui.checkBox_spy_clipboard.toggled.connect(self.on_toggle_spy_clipboar)
         self.ui.checkBox_collect_mods.toggled.connect(self.on_toggle_mod_collect)
+        self.ui.checkBox_click_bad_map.toggled.connect(self.on_toggle_click_bad_map)
 
         self.ui.checkBox_spy_clipboard.setChecked(True)
         
@@ -45,4 +46,9 @@ class widgetItenHelper(QWidget):
         
     def on_toggle_mod_collect(self, checked: bool):
         self.model.set_mod_collect_enable(checked)
+
+    def on_toggle_click_bad_map(self, checked: bool):
+        self.model.set_move_bad_map_enable(checked)
         
+    # def click_mouse_in_main_thread(self):
+    #     MouseHelper.click_left()

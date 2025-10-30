@@ -34,12 +34,18 @@
        <property name="text">
         <string>监测剪贴板</string>
        </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="checkBox_collect_mods">
+      <widget class="QCheckBox" name="checkBox_click_bad_map">
        <property name="text">
-        <string>收集词缀</string>
+        <string>点击坏图</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
        </property>
       </widget>
      </item>
@@ -87,11 +93,28 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="label_app_status">
-     <property name="text">
-      <string>TextLabel</string>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="label_app_status">
+       <property name="text">
+        <string>TextLabel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkBox_collect_mods">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>收集词缀</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>

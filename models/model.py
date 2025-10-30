@@ -1,4 +1,7 @@
 import win32gui
+import win32api
+import win32con
+import time
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -8,11 +11,13 @@ from models.mod_collector import ModCollector
 
 HWND_POE2_CLASSTYPE = 'POEWindowClass'
 DELIMETER_ITEM_TEXT = '--------\n'
+KEYWORD_MIWU = '亢奋 (enchant)'
 
 
 class Model(QObject):
     clipboard_changed = pyqtSignal(str)
     fenxi_result_notified = pyqtSignal(str)
+    cmd_click_wanted = pyqtSignal()
 
     def __init__(self):
 
@@ -23,6 +28,7 @@ class Model(QObject):
 
         self._enable_spy: bool = False
         self._enable_mod_collect: bool = False
+        self._enable_move_bad_map: bool = False
 
         # 获取剪贴板对象
         self.clipboard = QApplication.clipboard()
@@ -43,6 +49,9 @@ class Model(QObject):
 
     def set_mod_collect_enable(self, enable: bool):
         self._enable_mod_collect = enable
+
+    def set_move_bad_map_enable(self, enable: bool):
+        self._enable_move_bad_map = enable
 
     def on_clipboard_change(self):
         hwnd = win32gui.GetForegroundWindow()
@@ -77,18 +86,23 @@ class Model(QObject):
             # 常规模式
             count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown = self.modCollector.calc_count_prefix_subfix(str_mods)
 
-            self.play_notify_sound(count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown)
+            sound_map = self.play_notify_sound(count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown)
 
             desc = '前缀数：{}， 后缀数：{}'.format(count_prefix, count_subfix)
             if count_unknown > 0:
                 desc += '\n发现 {} 条未知词缀，详情看console'.format(count_unknown)
             self.fenxi_result_notified.emit(desc)
 
+            if self._enable_move_bad_map:
+                self.move_map_by_type(sound_map)
 
     def calc_mods_of_item(self, item_text: str):
         arr = item_text.split(DELIMETER_ITEM_TEXT)
 
         str_mods = arr[3]
+
+        if KEYWORD_MIWU in str_mods:
+            str_mods = arr[4]
 
         # print(str_mods)
         return str_mods
@@ -124,3 +138,20 @@ class Model(QObject):
 
         if sound:
             self.soundPlayer.play(sound)
+
+        return sound
+    
+    def move_map_by_type(self, sound_map: EnumShortSoundMap):
+        
+        if sound_map is None:
+            return
+        
+        if sound_map in [EnumShortSoundMap.Full, EnumShortSoundMap.Bad3, EnumShortSoundMap.Bad]:
+            # 获取当前鼠标位置
+            # x, y = win32api.GetCursorPos()
+            
+            # print('--->click:', x, y)        
+                
+            # MouseHelper.click_left()            
+            
+            pass
