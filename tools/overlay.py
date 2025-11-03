@@ -17,6 +17,9 @@ class TransparentOverlay:
         self.mem_dc = None
         self.bitmap = None
         self.rects = []  # [(x, y, w, h)]
+        
+        self._x0 = 0
+        self._y0 = 0
 
         self._create_overlay()
 
@@ -86,6 +89,9 @@ class TransparentOverlay:
             | win32con.SWP_NOMOVE,
         )
 
+        self._x0 = x
+        self._y0 = y
+
         self._clear()
         self._redraw()
 
@@ -151,6 +157,9 @@ class TransparentOverlay:
         self.rects.clear()
         self._redraw()
 
+    def to_pos_window(self, x, y):
+        return x - self._x0, y - self._y0
+
 
 if __name__ == "__main__":
     overlay = TransparentOverlay("流放之路：降临")  # 或者替换为中文名窗口
@@ -159,7 +168,8 @@ if __name__ == "__main__":
 
     import time
     time.sleep(2)
-    overlay.clear_rects()
+    # overlay.clear_rects()
+    del overlay
 
     input("按回车退出...")
-    overlay.clear_rects()
+    # overlay.clear_rects()

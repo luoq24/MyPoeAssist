@@ -6,6 +6,8 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from tools.soundPlayer import EnumShortSoundMap, SoundPlayer
+from tools.overlay import TransparentOverlay
+from models.bag import ChestPoe2
 from models.mod_collector import ModCollector
 
 
@@ -24,11 +26,13 @@ class Model(QObject):
         super().__init__()
 
         self.soundPlayer = SoundPlayer(self)
+        self.overlay: TransparentOverlay = None
         self.modCollector = ModCollector()
+        self.chest = ChestPoe2()
 
         self._enable_spy: bool = False
         self._enable_mod_collect: bool = False
-        self._enable_move_bad_map: bool = False
+        self._enbale_overlay: bool = False
 
         # 获取剪贴板对象
         self.clipboard = QApplication.clipboard()
@@ -93,9 +97,6 @@ class Model(QObject):
                 desc += '\n发现 {} 条未知词缀，详情看console'.format(count_unknown)
             self.fenxi_result_notified.emit(desc)
 
-            if self._enable_move_bad_map:
-                self.move_map_by_type(sound_map)
-
     def calc_mods_of_item(self, item_text: str):
         arr = item_text.split(DELIMETER_ITEM_TEXT)
 
@@ -139,19 +140,32 @@ class Model(QObject):
         if sound:
             self.soundPlayer.play(sound)
 
+        if self._enbale_overlay:
+            if sound in [EnumShortSoundMap.Bad, EnumShortSoundMap.Bad3, EnumShortSoundMap.Full]:                
+                self.mark_item()
+
         return sound
     
-    def move_map_by_type(self, sound_map: EnumShortSoundMap):
-        
-        if sound_map is None:
-            return
-        
-        if sound_map in [EnumShortSoundMap.Full, EnumShortSoundMap.Bad3, EnumShortSoundMap.Bad]:
-            # 获取当前鼠标位置
-            # x, y = win32api.GetCursorPos()
-            
-            # print('--->click:', x, y)        
-                
-            # MouseHelper.click_left()            
-            
-            pass
+    def enable_overlay(self):
+        if self.overlay is None:
+            self.overlay = TransparentOverlay("流放之路：降临")
+
+        self._enbale_overlay = True
+
+    def disable_overlay(self):
+        self.clear_all_mark()
+        self._enbale_overlay = False
+
+    def clear_all_mark(self):
+        self.overlay.clear_rects()
+
+    def mark_item(self):
+        px, py = win32api.GetCursorPos()
+        px, py = self.overlay.to_pos_window(px, py)
+        if not self.chest.is_pos_valid(px, py):
+            return        
+
+        x, y, w, h = self.chest.get_rect_border(px, py)
+
+        self.overlay.draw_rect(x, y, w, h)
+        self.overlay._redraw()
