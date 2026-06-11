@@ -34,7 +34,8 @@ class SoundPlayer(QObject):
             path = os.path.join(DIR_SOUND, '{}.wav'.format(eSound.value))
             sound_effect = QSoundEffect(self)
             if not os.path.exists(path):
-                raise FileNotFoundError(f"提示音文件不存在: {path}")
+                pass
+                # raise FileNotFoundError(f"提示音文件不存在: {path}")
             sound_effect.setSource(QUrl.fromLocalFile(path))
             sound_effect.setVolume(1.0)  # 0.0 ~ 1.0
 
