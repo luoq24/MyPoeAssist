@@ -4,7 +4,7 @@ from PyQt6.QtMultimedia import QSoundEffect
 from PyQt6.QtCore import QUrl, QObject
 
 
-DIR_SOUND = "D:\\Pycharm_Files\\MyPoeAssist\\data\\audio"
+DIR_SOUND = os.path.join(os.path.dirname(__file__), os.pardir, "data", "audio")
 
 
 class EnumShortSoundMap(Enum):
@@ -34,8 +34,7 @@ class SoundPlayer(QObject):
             path = os.path.join(DIR_SOUND, '{}.wav'.format(eSound.value))
             sound_effect = QSoundEffect(self)
             if not os.path.exists(path):
-                pass
-                # raise FileNotFoundError(f"提示音文件不存在: {path}")
+                raise FileNotFoundError(f"提示音文件不存在: {path}")
             sound_effect.setSource(QUrl.fromLocalFile(path))
             sound_effect.setVolume(1.0)  # 0.0 ~ 1.0
 
