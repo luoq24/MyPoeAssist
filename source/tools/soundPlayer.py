@@ -4,7 +4,7 @@ from PyQt6.QtMultimedia import QSoundEffect
 from PyQt6.QtCore import QUrl, QObject
 
 
-DIR_SOUND = "D:\\Pycharm_Files\\MyPoeAssist\\data\\audio"
+DIR_SOUND = os.path.join(os.path.dirname(__file__), os.pardir, "data", "audio")
 
 
 class EnumShortSoundMap(Enum):

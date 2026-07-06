@@ -10,7 +10,7 @@ def clamp(num, min_value, max_value):
 
 
 class BagBase(object):
-    _SHRINK_BORDER = 1
+    _SHRINK_BORDER = 2
     _SHRINK_DETECT = 3
 
     def __init__(self, x_min: int, x_max: int, x_size: int, y_min: int, y_max: int, y_size: int):        
