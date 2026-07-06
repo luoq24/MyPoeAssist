@@ -31,6 +31,7 @@ class widgetItenHelper(QWidget):
         self.ui.checkBox_spy_clipboard.toggled.connect(self.on_toggle_spy_clipboar)
         self.ui.checkBox_collect_mods.toggled.connect(self.on_toggle_mod_collect)
         self.ui.checkBox_enable_map_mark.toggled.connect(self.on_toggle_enbale_marks)
+        self.ui.checkBox_notice_sound.toggled.connect(self.model.set_notice_sound_enable)
 
         self.ui.checkBox_spy_clipboard.setChecked(True)
         

@@ -20,6 +20,13 @@ class Model(QObject):
     clipboard_changed = pyqtSignal(str)
     fenxi_result_notified = pyqtSignal(str)
     cmd_click_wanted = pyqtSignal()
+    _DICT_MAP_COLOR = {
+        'red': [(255, 0, 0), [EnumShortSoundMap.Bad, EnumShortSoundMap.Bad3, EnumShortSoundMap.Full]],
+        'green': [(0, 255, 0), [EnumShortSoundMap.Good3, EnumShortSoundMap.Good4, EnumShortSoundMap.Good5]],
+        'blue': [(0, 0, 255), [EnumShortSoundMap.Wait, ]],
+        'grey': [(100, 100, 100), [EnumShortSoundMap.Magic, EnumShortSoundMap.Normal]],
+        'purple': [(235, 50, 235), [EnumShortSoundMap.Unknown, EnumShortSoundMap.Shenyuan]],
+    }
 
     def __init__(self):
 
@@ -33,6 +40,10 @@ class Model(QObject):
         self._enable_spy: bool = False
         self._enable_mod_collect: bool = False
         self._enbale_overlay: bool = False
+        self._enbale_sound: bool = False
+
+        self._dict_map_color: dict[EnumShortSoundMap, tuple[int, int, int]] = ...
+        self._init_dict_map_color()
 
         # 获取剪贴板对象
         self.clipboard = QApplication.clipboard()
@@ -41,6 +52,13 @@ class Model(QObject):
 
     def connect_slots(self):
         pass
+
+    def _init_dict_map_color(self):
+        self._dict_map_color = dict()
+
+        for rgb, list_sounds in self._DICT_MAP_COLOR.values():
+            for sound in list_sounds:
+                self._dict_map_color[sound] = rgb
 
     def set_spy_enable(self, enable: bool):
         if enable:
@@ -56,6 +74,9 @@ class Model(QObject):
 
     def set_move_bad_map_enable(self, enable: bool):
         self._enable_move_bad_map = enable
+
+    def set_notice_sound_enable(self, enable: bool):
+        self._enbale_sound = enable
 
     def on_clipboard_change(self):
         hwnd = win32gui.GetForegroundWindow()
@@ -90,7 +111,14 @@ class Model(QObject):
             # 常规模式
             count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown = self.modCollector.calc_count_prefix_subfix(str_mods)
 
-            sound_map = self.play_notify_sound(count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown)
+            sound_map = self.calc_map_sound_type(count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown)
+            
+            if self._enbale_sound:
+                if sound_map:
+                    self.soundPlayer.play(sound_map)
+
+            if self._enbale_overlay:
+                self.mark_map(sound_map)
 
             desc = '前缀数：{}， 后缀数：{}'.format(count_prefix, count_subfix)
             if count_unknown > 0:
@@ -108,7 +136,7 @@ class Model(QObject):
         # print(str_mods)
         return str_mods
     
-    def play_notify_sound(self, count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown):
+    def calc_map_sound_type(self, count_prefix, count_subfix, count_shenyuan, count_bad, count_unknown):
         sound = None
         total = count_prefix + count_subfix
 
@@ -137,13 +165,6 @@ class Model(QObject):
         else:
             sound = EnumShortSoundMap.Wait
 
-        if sound:
-            self.soundPlayer.play(sound)
-
-        if self._enbale_overlay:
-            if sound in [EnumShortSoundMap.Bad, EnumShortSoundMap.Bad3, EnumShortSoundMap.Full]:                
-                self.mark_item()
-
         return sound
     
     def enable_overlay(self):
@@ -159,13 +180,15 @@ class Model(QObject):
     def clear_all_mark(self):
         self.overlay.clear_rects()
 
-    def mark_item(self):
+    def mark_map(self, sound_map: EnumShortSoundMap):
         px, py = win32api.GetCursorPos()
         px, py = self.overlay.to_pos_window(px, py)
+        
         if not self.chest.is_pos_valid(px, py):
-            return        
+            return
 
         x, y, w, h = self.chest.get_rect_border(px, py)
+        r, g, b = self._dict_map_color.get(sound_map)
 
-        self.overlay.draw_rect(x, y, w, h)
+        self.overlay.add_rect(x, y, w, h, r, g, b)
         self.overlay._redraw()

@@ -44,6 +44,13 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
+      <widget class="QCheckBox" name="checkBox_notice_sound">
+       <property name="text">
+        <string>提示音</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QCheckBox" name="checkBox_mark_bad_map">
        <property name="text">
         <string>标记坏图</string>

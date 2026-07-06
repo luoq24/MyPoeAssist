@@ -26,6 +26,9 @@ class Ui_Form(object):
         self.verticalLayout.addLayout(self.horizontalLayout)
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        self.checkBox_notice_sound = QtWidgets.QCheckBox(parent=Form)
+        self.checkBox_notice_sound.setObjectName("checkBox_notice_sound")
+        self.horizontalLayout_3.addWidget(self.checkBox_notice_sound)
         self.checkBox_mark_bad_map = QtWidgets.QCheckBox(parent=Form)
         self.checkBox_mark_bad_map.setChecked(True)
         self.checkBox_mark_bad_map.setObjectName("checkBox_mark_bad_map")
@@ -80,6 +83,7 @@ class Ui_Form(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
         self.checkBox_spy_clipboard.setText(_translate("Form", "监测剪贴板"))
+        self.checkBox_notice_sound.setText(_translate("Form", "提示音"))
         self.checkBox_mark_bad_map.setText(_translate("Form", "标记坏图"))
         self.checkBox_mark_good_map.setText(_translate("Form", "标记好图"))
         self.checkBox_enable_map_mark.setText(_translate("Form", "启用标记"))
