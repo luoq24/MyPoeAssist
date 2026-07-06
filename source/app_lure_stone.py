@@ -12,7 +12,7 @@ PATH_ICON_APP = "data\\liemo.ico"
 # PATH_ICON_APP = "G:\\logo icon\\huiz2.ico"
 
 
-class AppPoeAssist(QMainWindow):
+class AppLureStone(QMainWindow):
 
     def __init__(self):
         super().__init__()
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
     app.setWindowIcon(QIcon(PATH_ICON_APP))
-    watcher = AppPoeAssist()
+    watcher = AppLureStone()
     watcher.show()
 
     sys.exit(app.exec())
