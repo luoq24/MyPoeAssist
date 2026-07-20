@@ -39,13 +39,51 @@
        </property>
       </widget>
      </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
-      <widget class="QCheckBox" name="checkBox_click_bad_map">
+      <widget class="QCheckBox" name="checkBox_notice_sound">
        <property name="text">
-        <string>点击坏图</string>
+        <string>提示音</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkBox_mark_bad_map">
+       <property name="text">
+        <string>标记坏图</string>
        </property>
        <property name="checked">
-        <bool>false</bool>
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkBox_mark_good_map">
+       <property name="text">
+        <string>标记好图</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkBox_enable_map_mark">
+       <property name="text">
+        <string>启用标记</string>
        </property>
       </widget>
      </item>

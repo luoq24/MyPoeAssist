@@ -10,7 +10,7 @@ class widgetItenHelper(QWidget):
     def __init__(self, model: Model):
         super().__init__()
 
-        self.model = model
+        self.model = model        
 
         self._status_info: StatusInfoMultiLine = ...
         self.ui = Ui_Form()
@@ -30,7 +30,8 @@ class widgetItenHelper(QWidget):
 
         self.ui.checkBox_spy_clipboard.toggled.connect(self.on_toggle_spy_clipboar)
         self.ui.checkBox_collect_mods.toggled.connect(self.on_toggle_mod_collect)
-        self.ui.checkBox_click_bad_map.toggled.connect(self.on_toggle_click_bad_map)
+        self.ui.checkBox_enable_map_mark.toggled.connect(self.on_toggle_enbale_marks)
+        self.ui.checkBox_notice_sound.toggled.connect(self.model.set_notice_sound_enable)
 
         self.ui.checkBox_spy_clipboard.setChecked(True)
         
@@ -47,8 +48,11 @@ class widgetItenHelper(QWidget):
     def on_toggle_mod_collect(self, checked: bool):
         self.model.set_mod_collect_enable(checked)
 
-    def on_toggle_click_bad_map(self, checked: bool):
-        self.model.set_move_bad_map_enable(checked)
+    def on_toggle_enbale_marks(self, checked: bool):
+        if checked:
+            self.model.enable_overlay()
+        else:
+            self.model.disable_overlay()
         
     # def click_mouse_in_main_thread(self):
     #     MouseHelper.click_left()

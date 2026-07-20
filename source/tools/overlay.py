@@ -17,6 +17,9 @@ class TransparentOverlay:
         self.mem_dc = None
         self.bitmap = None
         self.rects = []  # [(x, y, w, h)]
+        
+        self._x0 = 0
+        self._y0 = 0
 
         self._create_overlay()
 
@@ -86,6 +89,9 @@ class TransparentOverlay:
             | win32con.SWP_NOMOVE,
         )
 
+        self._x0 = x
+        self._y0 = y
+
         self._clear()
         self._redraw()
 
@@ -102,13 +108,14 @@ class TransparentOverlay:
         w, h = rect[2], rect[3]
 
         # 清空内存DC，保持透明
-        win32gui.PatBlt(self.mem_dc, 0, 0, w, h, win32con.BLACKNESS)
+        win32gui.PatBlt(self.mem_dc, 0, 0, w, h, win32con.BLACKNESS)        
 
-        # 创建红色画笔
-        pen = win32gui.CreatePen(win32con.PS_SOLID, 2, win32api.RGB(255, 0, 0))
-        old_pen = win32gui.SelectObject(self.mem_dc, pen)
+        for (x, y, rw, rh, r, g, b) in self.rects:
 
-        for (x, y, rw, rh) in self.rects:
+            # 设置画笔颜色
+            pen = win32gui.CreatePen(win32con.PS_SOLID, 2, win32api.RGB(r, g, b))
+            win32gui.SelectObject(self.mem_dc, pen)
+
             # 左上到右上
             win32gui.MoveToEx(self.mem_dc, x, y)
             win32gui.LineTo(self.mem_dc, x + rw, y)
@@ -123,7 +130,7 @@ class TransparentOverlay:
             win32gui.LineTo(self.mem_dc, x, y)
 
         # 恢复原笔
-        win32gui.SelectObject(self.mem_dc, old_pen)
+        # win32gui.SelectObject(self.mem_dc, old_pen)
 
         # 设置透明混合参数
         blend = (win32con.AC_SRC_OVER, 0, 255, win32con.AC_SRC_ALPHA)
@@ -141,7 +148,7 @@ class TransparentOverlay:
             win32con.ULW_ALPHA,
         )
 
-    def draw_rect(self, x, y, w, h):
+    def old_draw_rect(self, x, y, w, h):
         """绘制矩形框"""
         self.rects.append((x, y, w, h))
         self._redraw()
@@ -151,6 +158,12 @@ class TransparentOverlay:
         self.rects.clear()
         self._redraw()
 
+    def add_rect(self, x, y, w, h, r, g, b):
+        self.rects.append((x, y, w, h, r, g, b))
+
+    def to_pos_window(self, x, y):
+        return x - self._x0, y - self._y0
+
 
 if __name__ == "__main__":
     overlay = TransparentOverlay("流放之路：降临")  # 或者替换为中文名窗口
@@ -159,7 +172,8 @@ if __name__ == "__main__":
 
     import time
     time.sleep(2)
-    overlay.clear_rects()
+    # overlay.clear_rects()
+    del overlay
 
     input("按回车退出...")
-    overlay.clear_rects()
+    # overlay.clear_rects()
