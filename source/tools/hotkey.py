@@ -8,6 +8,7 @@ WM_HOTKEY = 0x0312
 MOD_NOREPEAT = 0x4000
 
 # 常用虚拟键码
+VK_F2 = 0x71
 VK_F3 = 0x72
 VK_F4 = 0x73
 

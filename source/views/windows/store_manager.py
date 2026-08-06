@@ -43,6 +43,10 @@ class widgetStoreManager(QWidget):
         self.btn_reduce_one = QPushButton('修改鼠标指向的道具 [F4]')
         self.btn_reduce_one.setToolTip('全局快捷键 F4')
         form.addRow('', self.btn_reduce_one)
+
+        self.btn_batch = QPushButton('遍历坐标测试 [F2]')
+        self.btn_batch.setToolTip('全局快捷键 F2：遍历摊位网格开/关改价界面（调试坐标用），再次按 F2 中断')
+        form.addRow('', self.btn_batch)
         root.addWidget(box_discount)
 
         # 采集设置（模板 / 切换坐标）
@@ -65,6 +69,7 @@ class widgetStoreManager(QWidget):
         self.combo_coord.addItem('展开下拉框', 'expand')
         for cn in STORE_CURRENCIES.values():
             self.combo_coord.addItem('选中 {}'.format(cn), cn)
+        self.combo_coord.addItem('上架货物', 'put_on_shelf')
 
         row_mode.addWidget(self.combo_currency)
         row_mode.addWidget(self.combo_coord)
@@ -106,6 +111,7 @@ class widgetStoreManager(QWidget):
         self.spin_discount.valueChanged.connect(self.model.set_discount)
 
         self.btn_reduce_one.clicked.connect(self.model.reduce_price_of_hovered_item)
+        self.btn_batch.clicked.connect(self.on_batch)
         self.btn_reload.clicked.connect(self.model.load_prices)
         self.btn_capture.clicked.connect(self.on_capture)
         self.combo_mode.currentIndexChanged.connect(self.on_mode_changed)
@@ -118,6 +124,9 @@ class widgetStoreManager(QWidget):
     # ---------------- 响应 ----------------
     def on_status_changed(self, msg: str):
         self.text_status.appendPlainText(msg)
+
+    def on_batch(self):
+        self.model.toggle_batch_traversal()
 
     def on_mode_changed(self):
         # 模板模式显示币种下拉，坐标模式显示坐标槽位下拉

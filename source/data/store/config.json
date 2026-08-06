@@ -44,6 +44,10 @@
             "comment": "\u5207\u6362\u5e01\u79cd\u5750\u6807\u5747\u5b58\u7b2c 1 \u6863\uff0c\u8fd0\u884c\u65f6\u6309\u8bc6\u522b\u5230\u7684\u9ad8\u5ea6\u6863 delta_y \u81ea\u52a8\u504f\u79fb\u3002"
         },
         "match_threshold": 0.8,
+        "put_on_shelf": {
+            "x": 1132,
+            "y": 648
+        },
         "comment_step6": "\u82e5\u65b0\u5e01\u79cd\u4e0e\u5f53\u524d\u5e01\u79cd\u4e0d\u540c\uff0c\u9700\u70b9\u51fb\u4e0b\u62c9\u6846\u5c55\u5f00\u5e76\u9009\u4e2d\u65b0\u5e01\u79cd\u3002"
     },
     "delays": {
@@ -52,6 +56,7 @@
         "after_type": 0.2,
         "after_switch": 0.3,
         "after_switch_expand": 0.5,
+        "after_put_on_shelf": 0.3,
         "after_move": 0.3,
         "comment": "\u5404\u6b65\u9aa4\u4e4b\u95f4\u7684\u7b49\u5f85\u79d2\u6570\uff0c\u6309\u5b9e\u9645\u624b\u611f\u8c03\u6574\u3002after_switch_expand \u662f\u5c55\u5f00\u5e01\u79cd\u4e0b\u62c9\u540e\u3001\u7b49\u5f85\u5217\u8868\u5f39\u51fa\u518d\u70b9\u51fb\u9009\u4e2d\u7684\u5ef6\u8fdf\u3002"
     }

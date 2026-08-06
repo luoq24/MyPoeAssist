@@ -5,6 +5,7 @@ import time
 import win32clipboard
 
 from models.currency_pricer import SUPPORTED_CURRENCIES
+from models.bag import StallPoe2
 from tools.input_helper import KeyboardHelper, MouseHelper
 from tools.screen import STORE_CURRENCIES, CurrencyMatcher, capture_bbox
 
@@ -106,6 +107,8 @@ class StoreAutomation(object):
         self._chaos_value_fn = chaos_value_fn
         self._config = {}
         self._log_cb = None
+        self._grid = StallPoe2()  # 摊位道具网格（坐标待实测微调）
+        self._seen_items: set[str] = set()  # 批量时已处理的道具文本缓存（用于跳过多格道具/重复）
 
     # ---------------- 配置 ----------------
     def load_config(self) -> bool:
@@ -201,6 +204,45 @@ class StoreAutomation(object):
         IoTool.save_json(self._config, self._config_path)
         return delta_y
 
+    # ---------------- 上架货物坐标采集/点击 ----------------
+    def capture_put_on_shelf_coordinate(self) -> int:
+        """
+        采集当前鼠标位置作为「上架货物」按钮坐标，归一化到第 1 档（减去当前档 delta_y）。
+        返回当前档 delta_y。
+        """
+        if not self._ensure_config():
+            raise RuntimeError('配置加载失败: {}'.format(self._config_path))
+
+        key, score, delta_y = self._detect_tier()
+        if key is None:
+            raise RuntimeError('未识别到币种图标（置信度 {:.2f}），请先打开价格调整界面并采集模板'.format(score))
+
+        import win32gui
+        mx, my = win32gui.GetCursorPos()
+        bx, by = mx, my - delta_y  # 归一化到第 1 档
+
+        self._config.setdefault('price_ui', {})['put_on_shelf'] = {'x': bx, 'y': by}
+
+        from tools.io_tool import IoTool
+        IoTool.save_json(self._config, self._config_path)
+        return delta_y
+
+    def click_put_on_shelf(self, delta_y: int | None = None) -> bool:
+        """点击「上架货物」按钮（第 1 档坐标 + 当前档 delta_y）。"""
+        if delta_y is None:
+            _, _, delta_y = self._detect_tier()
+
+        pos = self._config.get('price_ui', {}).get('put_on_shelf')
+        if not pos:
+            self._log('未配置上架货物坐标，跳过（先采集 F3 坐标模式）')
+            return False
+
+        settle = self._config['delays'].get('after_move', 0.3)
+        MouseHelper.click_at_left(pos['x'], pos['y'] + delta_y, settle=settle)
+        time.sleep(self._config['delays'].get('after_put_on_shelf', 0.3))
+        self._log('已点击「上架货物」')
+        return True
+
     def switch_currency(self, target_cn: str, delta_y: int | None = None) -> bool:
         """执行币种切换：第一次单击展开下拉列表，第二次单击选中目标通货（坐标 = 第1档 + 当前档 delta_y）。"""
         if delta_y is None:
@@ -231,18 +273,128 @@ class StoreAutomation(object):
 
     # ---------------- 改价主流程 ----------------
     def run_repricing(self, discount: int):
+        """单个改价（F4）：对鼠标当前指向的道具执行完整改价流程。"""
         self._log('----- 单个改价开始 -----')
+        if not self.load_config():
+            self._log('配置加载失败，终止')
+            return
+        self._repricing_once(discount)
+        self._log('----- 单个改价完成 -----')
 
+    def run_batch_repricing(self, discount: int, is_cancelled=None):
+        """批量改价（F2）：遍历摊位网格每个道具格，逐个执行改价流程。"""
+        self._log('----- 批量改价开始 -----')
         if not self.load_config():
             self._log('配置加载失败，终止')
             return
 
+        self._seen_items.clear()  # 每次批量新建缓存，避免跨轮误跳过
+
+        rows = self._grid._y_size
+        cols = self._grid._x_size
+        total = rows * cols
+        index = 0
+
+        # 列优先：先处理第一列，再逐列向右
+        for col in range(cols):
+            for row in range(rows):
+                if is_cancelled and is_cancelled():
+                    self._log('已中断批量改价')
+                    return
+                index += 1
+                x, y = self._grid.get_cell_center(col, row)
+                self._log('---- ({}/{}) 改价格 ({},{}) ----'.format(index, total, col, row))
+
+                # 先移动并 Ctrl+C 取道具文本，命中缓存则跳过多格道具的其它格子
+                import win32api
+                win32api.SetCursorPos((x, y))
+                time.sleep(self._config['delays'].get('after_move', 0.3))
+                KeyboardHelper.ctrl_c()
+                time.sleep(self._config['delays'].get('after_ctrl_c', 0.2))
+                item_text = read_clipboard_text().strip()
+                if item_text and item_text in self._seen_items:
+                    self._log('     道具已处理过，跳过')
+                    continue
+                if item_text:
+                    self._seen_items.add(item_text)
+
+                self._repricing_once(discount, pos=(x, y))
+
+        self._log('----- 批量改价完成 -----（处理 {} 个不同道具）-----'.format(len(self._seen_items)))
+
+    def run_batch_traversal(self, is_cancelled=None):
+        """批量遍历测试（调试用）：只移动+右键打开改价界面，等待后 ESC 关闭，不实际改价。"""
+        self._log('----- 遍历坐标测试开始 -----')
+        if not self.load_config():
+            self._log('配置加载失败，终止')
+            return
+
+        import win32api
+        self._seen_items.clear()  # 每次测试新建缓存，验证多格道具跳过
+        rows = self._grid._y_size
+        cols = self._grid._x_size
+        total = rows * cols
+        index = 0
+
+        for col in range(cols):
+            for row in range(rows):
+                if is_cancelled and is_cancelled():
+                    self._log('已中断遍历测试')
+                    return
+                index += 1
+                x, y = self._grid.get_cell_center(col, row)
+                self._log('---- ({}/{}) 格 ({},{}) 中心 ({},{}) ----'.format(index, total, col, row, x, y))
+                win32api.SetCursorPos((x, y))
+                time.sleep(self._config['delays'].get('after_move', 0.3))
+
+                # Ctrl+C 取道具文本，命中缓存则跳过多格道具的其它格子
+                KeyboardHelper.ctrl_c()
+                time.sleep(self._config['delays'].get('after_ctrl_c', 0.2))
+                item_text = read_clipboard_text().strip()
+                if item_text and item_text in self._seen_items:
+                    self._log('     道具已处理过，跳过')
+                    continue
+                if item_text:
+                    self._seen_items.add(item_text)
+
+                MouseHelper.click_right()
+                time.sleep(self._config['delays'].get('after_right_click', 0.4))
+                # 检测改价页是否打开：未打开说明空格/锁定，直接跳过
+                key, score, _ = self._detect_tier()
+                if key is None:
+                    self._log('     未打开改价页（空格/锁定），跳过')
+                    continue
+                self._log('     改价页已打开，ESC 关闭')
+                time.sleep(0.5)          # 等待改价界面稳定
+                KeyboardHelper.esc()     # 关闭改价界面
+                time.sleep(0.2)
+
+        self._log('----- 遍历坐标测试完成 -----')
+
+    def _repricing_once(self, discount: int, pos: tuple[int, int] | None = None):
+        """
+        对单个道具执行改价流程。
+        pos：鼠标目标坐标（批量用）；None 表示使用当前鼠标位置（单个改价）。
+        """
         # 诊断：确认实际加载的配置路径与通货区域
         self._log('config: {} -> currency_region: {}'.format(self._config_path, list(self._currency_region() or ())))
+
+        if pos is not None:
+            import win32api
+            win32api.SetCursorPos(pos)
+            time.sleep(self._config['delays'].get('after_move', 0.3))
 
         # 1. 右键：弹出价格调整界面
         MouseHelper.click_right()
         time.sleep(self._config['delays'].get('after_right_click', 0.4))
+
+        # 1.1 先检测改价页是否打开：未打开说明空格/锁定，跳过（避免读到旧剪贴板）
+        key, score, delta_y = self._detect_tier()
+        if key is None:
+            self._log('未打开改价页（空格/锁定），跳过')
+            return
+        currency_cn = STORE_CURRENCIES[key]
+        self._log('识别币种: {} (score={:.2f}, delta_y={})'.format(currency_cn, score, delta_y))
 
         # 2. Ctrl+C：复制当前价格数字
         KeyboardHelper.ctrl_c()
@@ -251,17 +403,9 @@ class StoreAutomation(object):
         # 2.1 读取当前价格
         cur_price = _parse_price_number(read_clipboard_text())
         if cur_price is None:
-            self._log('未解析到当前价格，可能道具处于锁定期或未弹出调价界面')
+            self._log('未解析到当前价格，可能道具处于锁定期')
             return
         self._log('当前标价: {}'.format(cur_price))
-
-        # 3. 图像识别通货图标（按高度档遍历 y 偏移，取最佳匹配）
-        key, score, delta_y = self._detect_tier()
-        if key is None:
-            self._log('未能识别币种图像（置信度 {:.2f}），请先采集模板'.format(score))
-            return
-        currency_cn = STORE_CURRENCIES[key]
-        self._log('识别币种: {} (score={:.2f}, delta_y={})'.format(currency_cn, score, delta_y))
 
         # 4. 计算新价格（含通货降级优化）
         if self._chaos_value_fn:
@@ -282,5 +426,5 @@ class StoreAutomation(object):
         if target_cn != currency_cn:
             self.switch_currency(target_cn, delta_y=delta_y)
 
-        # 7. 上架货物（暂不实现，先测试）
-        self._log('----- 改价完成（未点击“上架货物”）-----')
+        # 7. 上架货物（第1档坐标 + 当前档 delta_y；未采集坐标则跳过）
+        self.click_put_on_shelf(delta_y=delta_y)

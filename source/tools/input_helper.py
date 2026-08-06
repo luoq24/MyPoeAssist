@@ -67,6 +67,12 @@ class KeyboardHelper(object):
         time.sleep(0.1)
 
     @staticmethod
+    def esc():
+        """按下并抬起 ESC 键（用于关闭价格调整界面）。"""
+        KeyboardHelper._press(win32con.VK_ESCAPE)
+        time.sleep(0.1)
+
+    @staticmethod
     def type_digits(text: str):
         """输入一串纯数字（0-9）。"""
         for ch in text:

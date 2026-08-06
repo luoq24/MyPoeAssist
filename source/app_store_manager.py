@@ -9,7 +9,7 @@ from PyQt6.QtGui import QFont, QIcon, QCloseEvent
 import qdarktheme
 
 from models.store_manager import StoreManager
-from tools.hotkey import GlobalHotkeyFilter, VK_F3, VK_F4
+from tools.hotkey import GlobalHotkeyFilter, VK_F2, VK_F3, VK_F4
 from views.windows.store_manager import widgetStoreManager
 
 
@@ -24,6 +24,7 @@ class AppStoreManager(QMainWindow):
         self.model = StoreManager()
 
         self.tab_store_manager: widgetStoreManager = ...
+        self._hotkey_f2: GlobalHotkeyFilter = ...
         self._hotkey_f3: GlobalHotkeyFilter = ...
         self._hotkey_f4: GlobalHotkeyFilter = ...
 
@@ -32,10 +33,17 @@ class AppStoreManager(QMainWindow):
 
     def init_hotkeys(self):
         app = QApplication.instance()
+        # F2 = 批量遍历坐标测试（调试中，再次按 F2 中断）
+        self._hotkey_f2 = GlobalHotkeyFilter(self.model.toggle_batch_traversal, hotkey_id=3)
         # F3 = 采集（按 GUI 当前模式：通货模板 或 切换币种坐标）
         self._hotkey_f3 = GlobalHotkeyFilter(self.tab_store_manager.on_capture, hotkey_id=1)
         # F4 = 修改鼠标指向的道具
         self._hotkey_f4 = GlobalHotkeyFilter(self.model.reduce_price_of_hovered_item, hotkey_id=2)
+
+        if self._hotkey_f2.register(VK_F2):
+            app.installNativeEventFilter(self._hotkey_f2)
+        else:
+            self.model.add_status('全局热键 F2 注册失败，可能已被占用')
 
         if self._hotkey_f3.register(VK_F3):
             app.installNativeEventFilter(self._hotkey_f3)

@@ -70,3 +70,9 @@ class BagBase(object):
 class ChestPoe2(BagBase):
     def __init__(self):
         super().__init__(14, 647, 12, 160, 792, 12)
+
+
+class StallPoe2(BagBase):
+    """摆摊辅助：摊位道具网格。初版沿用地图仓库参数，坐标待实测微调。"""
+    def __init__(self):
+        super().__init__(14, 647, 12, 160, 792, 12)

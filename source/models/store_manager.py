@@ -36,6 +36,10 @@ class StoreManager(QObject):
 
         self.automation = StoreAutomation(chaos_value_fn=self.pricer.get_chaos_value)
 
+        self._batch_cancel = threading.Event()
+        self._batch_running = False
+        self._batch_thread: threading.Thread | None = None
+
         self.load_prices()
 
     # ---------------- 价格表 ----------------
@@ -101,6 +105,51 @@ class StoreManager(QObject):
         t = threading.Thread(target=_run, daemon=True)
         t.start()
 
+    # ---------------- 批量改价（F2，可中断）----------------
+    @property
+    def batch_running(self) -> bool:
+        return self._batch_running
+
+    def toggle_batch_repricing(self):
+        """F2 触发：未运行则开始批量改价，运行中则请求中断。"""
+        if self._batch_running:
+            self._batch_cancel.set()
+            self.add_status('已发送中断请求，正在停止批量改价...')
+            return
+
+        self._batch_cancel.clear()
+        self._batch_running = True
+        self.automation._log_cb = self.add_status
+
+        def _run():
+            try:
+                self.automation.run_batch_repricing(self._discount, is_cancelled=self._batch_cancel.is_set)
+            finally:
+                self._batch_running = False
+
+        self._batch_thread = threading.Thread(target=_run, daemon=True)
+        self._batch_thread.start()
+
+    def toggle_batch_traversal(self):
+        """F2 触发（调试）：未运行则开始遍历坐标测试，运行中则请求中断。"""
+        if self._batch_running:
+            self._batch_cancel.set()
+            self.add_status('已发送中断请求，正在停止遍历测试...')
+            return
+
+        self._batch_cancel.clear()
+        self._batch_running = True
+        self.automation._log_cb = self.add_status
+
+        def _run():
+            try:
+                self.automation.run_batch_traversal(is_cancelled=self._batch_cancel.is_set)
+            finally:
+                self._batch_running = False
+
+        self._batch_thread = threading.Thread(target=_run, daemon=True)
+        self._batch_thread.start()
+
     def capture_template(self, key: str):
         """把当前通货图标区域截图保存为指定通货的模板。"""
         try:
@@ -111,10 +160,13 @@ class StoreManager(QObject):
             self.add_status('模板采集失败: {}'.format(e))
 
     def capture_coordinate(self, slot: str):
-        """采集当前鼠标位置作为切换币种坐标（归一化到第1档；slot: 'expand' 或通货中文名）。"""
+        """采集当前鼠标位置作为切换币种坐标（归一化到第1档；slot: 'expand'、'put_on_shelf' 或通货中文名）。"""
         try:
             self.automation._log_cb = self.add_status
-            delta_y = self.automation.capture_switch_coordinate(slot)
+            if slot == 'put_on_shelf':
+                delta_y = self.automation.capture_put_on_shelf_coordinate()
+            else:
+                delta_y = self.automation.capture_switch_coordinate(slot)
             self.add_status('已采集切换坐标 {}（当前档 delta_y={}）'.format(slot, delta_y))
         except Exception as e:
             self.add_status('坐标采集失败: {}'.format(e))
