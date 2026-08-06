@@ -1,0 +1,58 @@
+{
+    "price_ui": {
+        "currency_region": {
+            "x": 797,
+            "y": 634,
+            "w": 24,
+            "h": 24,
+            "comment": "\u4ef7\u683c\u8c03\u6574\u754c\u9762\u901a\u8d27\u56fe\u6807\u6240\u5728\u533a\u57df\uff0cy \u4e3a\u7b2c 1 \u6863\uff08\u6700\u5c0f\u9ad8\u5ea6\u6863\uff09\u3002\u5bbd\u9ad8\u6309\u5b9e\u9645\u6821\u51c6\u3002"
+        },
+        "delta_ys": [
+            5,
+            29,
+            54
+        ],
+        "delta_ys_comment": "\u7b2c 2/3/4 \u6863\u76f8\u5bf9\u7b2c 1 \u6863\u7684 y \u504f\u79fb\uff083 \u4e2a\u503c\uff09\u3002\u56fe\u6807\u9ad8\u5ea6\u4e0d\u540c\u4f1a\u8ba9\u754c\u9762\u6574\u4f53\u4e0a\u4e0b\u79fb\u52a8\uff0c\u8bc6\u522b\u533a\u57df\u548c\u5207\u6362\u5750\u6807\u90fd\u6309\u6b64\u504f\u79fb\u3002",
+        "currency_switch": {
+            "expand": {
+                "x": 1021,
+                "y": 647
+            },
+            "select": {
+                "\u795e\u5723\u77f3": {
+                    "x": 1018,
+                    "y": 766
+                },
+                "\u5265\u79bb\u77f3": {
+                    "x": 1009,
+                    "y": 906
+                },
+                "\u6df7\u6c8c\u77f3": {
+                    "x": 999,
+                    "y": 790
+                },
+                "\u5d07\u9ad8\u77f3": {
+                    "x": 1003,
+                    "y": 676
+                },
+                "\u70b9\u91d1\u77f3": {
+                    "x": 996,
+                    "y": 876
+                },
+                "comment": "\u7b2c\u4e8c\u6b21\u5355\u51fb\u9009\u4e2d\u5bf9\u5e94\u901a\u8d27\u7684\u4f4d\u7f6e\uff08\u7b2c 1 \u6863\u5750\u6807\uff09\u3002"
+            },
+            "comment": "\u5207\u6362\u5e01\u79cd\u5750\u6807\u5747\u5b58\u7b2c 1 \u6863\uff0c\u8fd0\u884c\u65f6\u6309\u8bc6\u522b\u5230\u7684\u9ad8\u5ea6\u6863 delta_y \u81ea\u52a8\u504f\u79fb\u3002"
+        },
+        "match_threshold": 0.8,
+        "comment_step6": "\u82e5\u65b0\u5e01\u79cd\u4e0e\u5f53\u524d\u5e01\u79cd\u4e0d\u540c\uff0c\u9700\u70b9\u51fb\u4e0b\u62c9\u6846\u5c55\u5f00\u5e76\u9009\u4e2d\u65b0\u5e01\u79cd\u3002"
+    },
+    "delays": {
+        "after_right_click": 0.4,
+        "after_ctrl_c": 0.2,
+        "after_type": 0.2,
+        "after_switch": 0.3,
+        "after_switch_expand": 0.5,
+        "after_move": 0.3,
+        "comment": "\u5404\u6b65\u9aa4\u4e4b\u95f4\u7684\u7b49\u5f85\u79d2\u6570\uff0c\u6309\u5b9e\u9645\u624b\u611f\u8c03\u6574\u3002after_switch_expand \u662f\u5c55\u5f00\u5e01\u79cd\u4e0b\u62c9\u540e\u3001\u7b49\u5f85\u5217\u8868\u5f39\u51fa\u518d\u70b9\u51fb\u9009\u4e2d\u7684\u5ef6\u8fdf\u3002"
+    }
+}
