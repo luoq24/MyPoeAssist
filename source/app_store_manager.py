@@ -33,8 +33,8 @@ class AppStoreManager(QMainWindow):
 
     def init_hotkeys(self):
         app = QApplication.instance()
-        # F2 = 批量遍历坐标测试（调试中，再次按 F2 中断）
-        self._hotkey_f2 = GlobalHotkeyFilter(self.model.toggle_batch_traversal, hotkey_id=3)
+        # F2 = 批量改价（再次按 F2 中断）
+        self._hotkey_f2 = GlobalHotkeyFilter(self.model.toggle_batch_repricing, hotkey_id=3)
         # F3 = 采集（按 GUI 当前模式：通货模板 或 切换币种坐标）
         self._hotkey_f3 = GlobalHotkeyFilter(self.tab_store_manager.on_capture, hotkey_id=1)
         # F4 = 修改鼠标指向的道具

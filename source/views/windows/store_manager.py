@@ -44,8 +44,8 @@ class widgetStoreManager(QWidget):
         self.btn_reduce_one.setToolTip('全局快捷键 F4')
         form.addRow('', self.btn_reduce_one)
 
-        self.btn_batch = QPushButton('遍历坐标测试 [F2]')
-        self.btn_batch.setToolTip('全局快捷键 F2：遍历摊位网格开/关改价界面（调试坐标用），再次按 F2 中断')
+        self.btn_batch = QPushButton('批量改价 [F2]')
+        self.btn_batch.setToolTip('全局快捷键 F2：从鼠标所在格向后遍历摊位网格逐个改价（支持多格道具跳过），再次按 F2 中断')
         form.addRow('', self.btn_batch)
         root.addWidget(box_discount)
 
@@ -126,7 +126,7 @@ class widgetStoreManager(QWidget):
         self.text_status.appendPlainText(msg)
 
     def on_batch(self):
-        self.model.toggle_batch_traversal()
+        self.model.toggle_batch_repricing()
 
     def on_mode_changed(self):
         # 模板模式显示币种下拉，坐标模式显示坐标槽位下拉

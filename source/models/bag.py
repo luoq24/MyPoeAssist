@@ -48,6 +48,16 @@ class BagBase(object):
         y = int(self._y_min + (row + 0.5) * self._cell_h)
         return x, y
 
+    def cell_index_at(self, x, y):
+        """返回坐标 (x,y) 所在格子的 (col,row)；若在摊位外边框外返回 None。"""
+        if not (self._x_min <= x <= self._x_max and self._y_min <= y <= self._y_max):
+            return None
+        col = int((x - self._x_min) / self._cell_w)
+        row = int((y - self._y_min) / self._cell_h)
+        col = clamp(col, 0, self._x_size - 1)
+        row = clamp(row, 0, self._y_size - 1)
+        return col, row
+
     def get_rect_border(self, x, y):
         return self._calc_rect_by_shrink(x, y, self._SHRINK_BORDER)
 

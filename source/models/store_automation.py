@@ -281,6 +281,26 @@ class StoreAutomation(object):
         self._repricing_once(discount)
         self._log('----- 单个改价完成 -----')
 
+    def _iter_cells_from_cursor(self):
+        """从鼠标当前位置所在格开始，向后遍历到摊位结尾（不绕回）。列优先（先向下后向右），返回 (col,row) 生成器。"""
+        import win32api
+        mx, my = win32api.GetCursorPos()
+        start = self._grid.cell_index_at(mx, my)
+        if start is None:
+            self._log('鼠标在摊位外，从第 1 格开始遍历')
+            start_col, start_row = 0, 0
+        else:
+            start_col, start_row = start
+            self._log('鼠标在摊位内，从格 ({},{}) 开始向后遍历'.format(start_col, start_row))
+
+        cols = self._grid._x_size
+        rows = self._grid._y_size
+        total = cols * rows
+        # 列优先线性序：idx = col*rows + row
+        start_idx = start_col * rows + start_row
+        for idx in range(start_idx, total):
+            yield idx // rows, idx % rows
+
     def run_batch_repricing(self, discount: int, is_cancelled=None):
         """批量改价（F2）：遍历摊位网格每个道具格，逐个执行改价流程。"""
         self._log('----- 批量改价开始 -----')
@@ -290,35 +310,32 @@ class StoreAutomation(object):
 
         self._seen_items.clear()  # 每次批量新建缓存，避免跨轮误跳过
 
-        rows = self._grid._y_size
-        cols = self._grid._x_size
-        total = rows * cols
         index = 0
+        # 从鼠标所在格开始（含回绕），列优先向后遍历
+        for col, row in self._iter_cells_from_cursor():
+            if is_cancelled and is_cancelled():
+                self._log('已中断批量改价')
+                return
+            index += 1
+            x, y = self._grid.get_cell_center(col, row)
+            self._log('---- ({}/{}) 改价格 ({},{}) ----'.format(index, 144, col, row))
 
-        # 列优先：先处理第一列，再逐列向右
-        for col in range(cols):
-            for row in range(rows):
-                if is_cancelled and is_cancelled():
-                    self._log('已中断批量改价')
-                    return
-                index += 1
-                x, y = self._grid.get_cell_center(col, row)
-                self._log('---- ({}/{}) 改价格 ({},{}) ----'.format(index, total, col, row))
+            # 先移动并 Ctrl+C 取道具文本，命中缓存则跳过多格道具的其它格子
+            import win32api
+            win32api.SetCursorPos((x, y))
+            # 身份识别用更短悬停延迟（空格/已处理道具跳过时显著提速）
+            time.sleep(self._config['delays'].get('after_move_ident', 0.1))
+            KeyboardHelper.ctrl_c()
+            time.sleep(self._config['delays'].get('after_ctrl_c', 0.2))
+            item_text = read_clipboard_text().strip()
+            if item_text and item_text in self._seen_items:
+                self._log('     道具已处理过，跳过')
+                continue
+            if item_text:
+                self._seen_items.add(item_text)
 
-                # 先移动并 Ctrl+C 取道具文本，命中缓存则跳过多格道具的其它格子
-                import win32api
-                win32api.SetCursorPos((x, y))
-                time.sleep(self._config['delays'].get('after_move', 0.3))
-                KeyboardHelper.ctrl_c()
-                time.sleep(self._config['delays'].get('after_ctrl_c', 0.2))
-                item_text = read_clipboard_text().strip()
-                if item_text and item_text in self._seen_items:
-                    self._log('     道具已处理过，跳过')
-                    continue
-                if item_text:
-                    self._seen_items.add(item_text)
-
-                self._repricing_once(discount, pos=(x, y))
+            # 光标已在格子中心，无需在 _repricing_once 内再次移动
+            self._repricing_once(discount, pos=None)
 
         self._log('----- 批量改价完成 -----（处理 {} 个不同道具）-----'.format(len(self._seen_items)))
 
@@ -331,43 +348,40 @@ class StoreAutomation(object):
 
         import win32api
         self._seen_items.clear()  # 每次测试新建缓存，验证多格道具跳过
-        rows = self._grid._y_size
-        cols = self._grid._x_size
-        total = rows * cols
         index = 0
 
-        for col in range(cols):
-            for row in range(rows):
-                if is_cancelled and is_cancelled():
-                    self._log('已中断遍历测试')
-                    return
-                index += 1
-                x, y = self._grid.get_cell_center(col, row)
-                self._log('---- ({}/{}) 格 ({},{}) 中心 ({},{}) ----'.format(index, total, col, row, x, y))
-                win32api.SetCursorPos((x, y))
-                time.sleep(self._config['delays'].get('after_move', 0.3))
+        # 从鼠标所在格开始（含回绕），列优先向后遍历
+        for col, row in self._iter_cells_from_cursor():
+            if is_cancelled and is_cancelled():
+                self._log('已中断遍历测试')
+                return
+            index += 1
+            x, y = self._grid.get_cell_center(col, row)
+            self._log('---- ({}/{}) 格 ({},{}) 中心 ({},{}) ----'.format(index, 144, col, row, x, y))
+            win32api.SetCursorPos((x, y))
+            time.sleep(self._config['delays'].get('after_move', 0.3))
 
-                # Ctrl+C 取道具文本，命中缓存则跳过多格道具的其它格子
-                KeyboardHelper.ctrl_c()
-                time.sleep(self._config['delays'].get('after_ctrl_c', 0.2))
-                item_text = read_clipboard_text().strip()
-                if item_text and item_text in self._seen_items:
-                    self._log('     道具已处理过，跳过')
-                    continue
-                if item_text:
-                    self._seen_items.add(item_text)
+            # Ctrl+C 取道具文本，命中缓存则跳过多格道具的其它格子
+            KeyboardHelper.ctrl_c()
+            time.sleep(self._config['delays'].get('after_ctrl_c', 0.2))
+            item_text = read_clipboard_text().strip()
+            if item_text and item_text in self._seen_items:
+                self._log('     道具已处理过，跳过')
+                continue
+            if item_text:
+                self._seen_items.add(item_text)
 
-                MouseHelper.click_right()
-                time.sleep(self._config['delays'].get('after_right_click', 0.4))
-                # 检测改价页是否打开：未打开说明空格/锁定，直接跳过
-                key, score, _ = self._detect_tier()
-                if key is None:
-                    self._log('     未打开改价页（空格/锁定），跳过')
-                    continue
-                self._log('     改价页已打开，ESC 关闭')
-                time.sleep(0.5)          # 等待改价界面稳定
-                KeyboardHelper.esc()     # 关闭改价界面
-                time.sleep(0.2)
+            MouseHelper.click_right()
+            time.sleep(self._config['delays'].get('after_right_click', 0.4))
+            # 检测改价页是否打开：未打开说明空格/锁定，直接跳过
+            key, score, _ = self._detect_tier()
+            if key is None:
+                self._log('     未打开改价页（空格/锁定），跳过')
+                continue
+            self._log('     改价页已打开，ESC 关闭')
+            time.sleep(0.5)          # 等待改价界面稳定
+            KeyboardHelper.esc()     # 关闭改价界面
+            time.sleep(0.2)
 
         self._log('----- 遍历坐标测试完成 -----')
 
