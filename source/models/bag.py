@@ -43,6 +43,11 @@ class BagBase(object):
 
         return x, y, w, h
     
+    def get_cell_center(self, col: int, row: int):
+        x = int(self._x_min + (col + 0.5) * self._cell_w)
+        y = int(self._y_min + (row + 0.5) * self._cell_h)
+        return x, y
+
     def get_rect_border(self, x, y):
         return self._calc_rect_by_shrink(x, y, self._SHRINK_BORDER)
 
