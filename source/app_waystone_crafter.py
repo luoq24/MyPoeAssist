@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 import win32api
 import win32con
+import win32clipboard
 import qdarktheme
 from PIL import ImageGrab
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -51,6 +52,7 @@ DELAY_CLICK = 0.03       # 鼠标按下与抬起之间的停顿
 DELAY_CLICK_JITTER = 0.02
 DELAY_AFTER = 0.15       # 每次应用通货后的停顿
 DELAY_AFTER_JITTER = 0.05
+DELAY_CTRL_C = 0.05      # 按下 Ctrl+C 复制道具信息后、读取剪贴板前的等待
 MIN_DELAY = 0.01         # 随机后的最小间隔下限
 
 # 通货模板目录与识别参数
@@ -67,7 +69,7 @@ class EnumCurrency(Enum):
     """批量功能对应的改造通货。value 为中文名称。"""
 
     ALCHEMY = '点金石'    # 应用 1 次
-    EXALTED = '崇高石'    # 应用 2 次
+    EXALTED = '崇高石'    # 应用 3 次
     VAAL = '瓦尔宝珠'     # 应用 1 次
 
     @property
@@ -83,8 +85,17 @@ class EnumCurrency(Enum):
     def apply_count(self) -> int:
         return {
             EnumCurrency.ALCHEMY: 1,
-            EnumCurrency.EXALTED: 2,
+            EnumCurrency.EXALTED: 3,
             EnumCurrency.VAAL: 1,
+        }[self]
+
+    @property
+    def extra_interval(self) -> float:
+        """每种通货在基础间隔之上额外追加的停顿（秒），用于放慢高价值通货节奏。"""
+        return {
+            EnumCurrency.ALCHEMY: 0.0,
+            EnumCurrency.EXALTED: 0.0,
+            EnumCurrency.VAAL: 0.3,
         }[self]
 
 
@@ -305,6 +316,27 @@ def _rand_sleep(base: float, jitter: float):
     time.sleep(delay)
 
 
+def read_clipboard_text() -> str:
+    """读取剪贴板文本（原生 win32clipboard，不依赖 Qt 的 OLE 剪贴板）。"""
+    text = ''
+    win32clipboard.OpenClipboard()
+    try:
+        if win32clipboard.IsClipboardFormatAvailable(win32clipboard.CF_UNICODETEXT):
+            text = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT) or ''
+    except Exception:
+        pass
+    finally:
+        win32clipboard.CloseClipboard()
+    return text
+
+
+def count_affixes(item_text: str) -> tuple[int, int]:
+    """统计道具文本中的前缀、后缀数量。返回 (前缀数, 后缀数)。"""
+    prefix = item_text.count('前缀属性')
+    suffix = item_text.count('后缀属性')
+    return prefix, suffix
+
+
 # ============================================================
 # 批量加工执行器（后台线程运行，可中途取消）
 # ============================================================
@@ -347,39 +379,121 @@ class WaystoneCrafter(QObject):
             self._running = False
             self._finished.emit()
 
-    def _apply_all(self, currency: EnumCurrency):
+    def _iter_cells_from_cursor(self):
+        """从鼠标当前位置所在格开始，向后遍历到网格结尾（不绕回）。列优先（先向下后向右），返回 (col,row) 生成器。
+
+        用于"从半路开始批量"：批量中断后，只需把鼠标移到上次中断的格子上再按 F2 即可续批。
+        """
+        import win32api
+        mx, my = win32api.GetCursorPos()
+        start = self._grid.cell_index_at(mx, my)
+        if start is None:
+            self._status_changed.emit('鼠标在仓库外，从第 1 格开始批量')
+            start_col, start_row = 0, 0
+        else:
+            start_col, start_row = start
+            self._status_changed.emit('从鼠标所在格 ({},{}) 开始批量'.format(start_col, start_row))
+
         rows = self._grid._y_size
-        cols = self._grid._x_size
-        total = rows * cols
+        total = self._grid._x_size * rows
+        # 列优先线性序：idx = col*rows + row
+        start_idx = start_col * rows + start_row
+        for idx in range(start_idx, total):
+            yield idx // rows, idx % rows
+
+    def _apply_all(self, currency: EnumCurrency):
+        total = self._grid._x_size * self._grid._y_size
         index = 0
 
-        self._status_changed.emit(f'开始批量：{currency.value}（每种应用 {currency.apply_count} 次）')
+        self._status_changed.emit(f'开始批量：{currency.value}')
 
         # 全程按住 Shift，保持"拾取通货"状态；结束或取消时再松开
         self._press_shift()
         try:
-            # 列优先：先处理第一列，再逐列向右
-            for col in range(cols):
-                for row in range(rows):
+            # 列优先：从鼠标所在格开始（可从半路续批），先向下后向右
+            for col, row in self._iter_cells_from_cursor():
+                if self._cancel:
+                    self._status_changed.emit('已取消批量功能')
+                    return
+
+                index += 1
+                self._progress_changed.emit(index, total)
+
+                x, y = self._grid.get_cell_center(col, row)
+
+                # 移到格子并 Ctrl+C 读取道具信息，返回本格应应用通货的次数（0 表示跳过）
+                apply_count = self._analyze_and_prepare(x, y, currency)
+                if apply_count <= 0:
+                    continue
+
+                # 应用通货 apply_count 次
+                for _ in range(apply_count):
                     if self._cancel:
                         self._status_changed.emit('已取消批量功能')
                         return
-
-                    index += 1
-                    self._progress_changed.emit(index, total)
-
-                    x, y = self._grid.get_cell_center(col, row)
-
-                    # 应用通货 apply_count 次
-                    for i in range(currency.apply_count):
-                        if self._cancel:
-                            self._status_changed.emit('已取消批量功能')
-                            return
-                        self._apply_currency_once(x, y)
+                    self._click_apply(currency)
         finally:
             self._release_shift()
 
         self._status_changed.emit('批量完成')
+
+    def _analyze_and_prepare(self, x, y, currency: EnumCurrency) -> int:
+        """移到格子中心，返回本格应应用通货的次数（0 表示跳过）。
+
+        瓦尔宝珠不做剪贴板分析，直接应用，加快速度；其余通货用 Ctrl+C
+        复制道具信息判断空格子/已腐化/词缀数量。
+        """
+        win32api.SetCursorPos((x, y))
+        _rand_sleep(DELAY_MOVE, DELAY_MOVE_JITTER)
+
+        # 瓦尔宝珠：无需 Ctrl+C，直接应用
+        if currency is EnumCurrency.VAAL:
+            return currency.apply_count
+
+        # 复制前的剪贴板内容，用于判断空格子（Ctrl+C 不会改变空格子的剪贴板）
+        before = read_clipboard_text()
+        self._ctrl_c()
+        time.sleep(DELAY_CTRL_C)
+        item_text = read_clipboard_text()
+
+        # 1. 空格子：剪贴板无变化
+        if item_text == before:
+            self._status_changed.emit('  ({},{}) 空格子，跳过'.format(x, y))
+            return 0
+
+        # 2. 已腐化：无法使用改造通货
+        if '被腐化' in item_text:
+            self._status_changed.emit('  已腐化的引路石，跳过')
+            return 0
+
+        # 3/4. 按通货计算应用次数
+        prefix_count, suffix_count = count_affixes(item_text)
+        affix_count = prefix_count + suffix_count
+
+        if currency is EnumCurrency.ALCHEMY:
+            # 词缀数量 >= 3 时已有稀有前缀/后缀，无法使用点金石
+            if affix_count >= 3:
+                self._status_changed.emit('  词缀数量 {} >= 3，无法使用点金石，跳过'.format(affix_count))
+                return 0
+            return currency.apply_count
+
+        if currency is EnumCurrency.EXALTED:
+            # 崇高石：可用次数 = 6 - 已有词缀数量
+            count = 6 - affix_count
+            if count <= 0:
+                self._status_changed.emit('  词缀已满（{} 条），无法使用崇高石，跳过'.format(affix_count))
+                return 0
+            self._status_changed.emit('  词缀 {} 条，应用崇高石 {} 次'.format(affix_count, count))
+            return count
+
+        return currency.apply_count
+
+    def _ctrl_c(self):
+        """快速 Ctrl+C（无额外休眠，速度由 DELAY_CTRL_C 控制）。"""
+        win32api.keybd_event(win32con.VK_CONTROL, 0, 0, 0)
+        win32api.keybd_event(ord('C'), 0, 0, 0)
+        win32api.keybd_event(ord('C'), 0, KEYEVENTF_KEYUP, 0)
+        win32api.keybd_event(win32con.VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
 
     def _press_shift(self):
         win32api.keybd_event(VK_SHIFT, 0, 0, 0)
@@ -389,16 +503,13 @@ class WaystoneCrafter(QObject):
         win32api.keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, 0)
         _rand_sleep(DELAY_CLICK, DELAY_CLICK_JITTER)
 
-    def _apply_currency_once(self, x, y):
-        """把鼠标移到格子中心并左键点击（Shift 由 _apply_all 全程按住）。"""
-        win32api.SetCursorPos((x, y))
-        _rand_sleep(DELAY_MOVE, DELAY_MOVE_JITTER)
-
+    def _click_apply(self, currency: EnumCurrency):
+        """在当前光标位置左键点击应用通货（Shift 由 _apply_all 全程按住）。"""
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         _rand_sleep(DELAY_CLICK, DELAY_CLICK_JITTER)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
 
-        _rand_sleep(DELAY_AFTER, DELAY_AFTER_JITTER)
+        _rand_sleep(DELAY_AFTER + currency.extra_interval, DELAY_AFTER_JITTER)
 
 
 # ============================================================
@@ -449,7 +560,9 @@ class AppWaystoneCrafter(QMainWindow):
             '1. 进入游戏，打开仓库并定位到"地图仓库页"（全部道具为引路石）\n'
             '2. 右键点击背包中的改造通货（如点金石），使鼠标拾取该通货\n'
             '3. 按 F2 开始对应通货的【批量功能】\n'
-            '4. 批量过程中再次按 F2 可中断\n\n'
+            '4. 批量过程中再次按 F2 可中断；中断后把鼠标移到上次中断的格子上再按 F2，即可从半路继续批量\n'
+            '5. 批量会自动跳过：空格子、已腐化的引路石；点金石会跳过词缀数量 >= 3 的引路石，崇高石则按\n'
+            '   "6 - 已有词缀数量"自动计算应用次数\n\n'
             '【自动识别通货】\n'
             '1. 在下方"通货选择"中指定要采集的通货\n'
             '2. 游戏中右键拾取该通货后，按 F3 采集模板（每种建议采集 3~5 张）\n'
