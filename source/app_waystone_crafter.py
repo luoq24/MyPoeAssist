@@ -454,7 +454,7 @@ class WaystoneCrafter(QObject):
         before = read_clipboard_text()
         self._ctrl_c()
         time.sleep(DELAY_CTRL_C)
-        item_text = read_clipboard_text()
+        item_text = self._read_item_text(before)
 
         # 1. 空格子：剪贴板无变化
         if item_text == before:
@@ -487,6 +487,22 @@ class WaystoneCrafter(QObject):
             return count
 
         return currency.apply_count
+
+    def _read_item_text(self, before: str, timeout_ms: int = 500) -> str:
+        """Ctrl+C 后轮询剪贴板，直到内容从 before 变化（新道具文本就绪）或超时。
+
+        游戏复制道具信息是异步的：固定睡眠（DELAY_CTRL_C=0.05s）在批量进行较久、
+        游戏负载上升时经常不足，会读到上一格/半截的旧文本，使词缀计数偏差 ±1。
+        改为轮询"内容确实变化"可消除这类竞态；超时仍无变化则视为空格子。
+        """
+        deadline = time.time() + timeout_ms / 1000.0
+        last = before
+        while time.time() < deadline:
+            last = read_clipboard_text()
+            if last != before:
+                return last
+            time.sleep(0.02)
+        return last
 
     def _ctrl_c(self):
         """快速 Ctrl+C（无额外休眠，速度由 DELAY_CTRL_C 控制）。"""
