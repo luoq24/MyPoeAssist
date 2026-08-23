@@ -53,11 +53,13 @@ def calc_new_price(price: int, discount: int) -> int:
 def decide_price(current_price: int, current_currency: str, discount: int,
                  chaos_value_fn, max_loss: float = PRECISION_MAX_LOSS):
     """
-    按降幅计算新价，并在精度损失超过上限时做通货降级。
+    按降幅计算新价，并在精度损失超过上限时切换到更合适的通货。
 
     思路：目标混沌等价 = 当前价 * 当前币种单价 * (1 - 降幅)。
-    从当前币种向更便宜的通货依次尝试，取第一个精度损失 <= max_loss 的
-    (价格, 币种)；若无满足项，则返回全部分案中损失最小的一个。
+    遍历全部支持通货（按单价从高到低），取第一个精度损失 <= max_loss 的
+    (价格, 币种)；也就是说，只要高单价的通货能把整数标价落在容错范围内，
+    就会优先选用它（因此改价后允许切换到更高单价的通货）。若无满足项，
+    则返回所有方案中损失最小的一个。
 
     返回 (new_price, target_currency)。
     """
@@ -68,14 +70,12 @@ def decide_price(current_price: int, current_currency: str, discount: int,
 
     target_chaos = current_price * v0 * (1 - discount / 100)
 
-    # 按单价从高到低排列，取当前币种及其之后（更便宜）的通货作为降级候选
+    # 按单价从高到低排列：越高单价的通货越优先，只要其整数标价能落在容错范围内
     order = sorted(SUPPORTED_CURRENCIES, key=lambda c: (chaos_value_fn(c) is None, -chaos_value_fn(c)))
-    cur_idx = order.index(current_currency) if current_currency in order else len(order) - 1
-    candidates = order[cur_idx:]
 
     best = None
     best_loss = float('inf')
-    for cn in candidates:
+    for cn in order:
         v = chaos_value_fn(cn)
         if not v or v <= 0:
             continue
@@ -421,14 +421,14 @@ class StoreAutomation(object):
             return
         self._log('当前标价: {}'.format(cur_price))
 
-        # 4. 计算新价格（含通货降级优化）
+        # 4. 计算新价格（含通货选择优化）
         if self._chaos_value_fn:
             new_price, target_cn = decide_price(cur_price, currency_cn, discount, self._chaos_value_fn)
         else:
             new_price, target_cn = calc_new_price(cur_price, discount), currency_cn
         self._log('降幅 {}% -> 新价: {} {}'.format(discount, new_price, target_cn))
         if target_cn != currency_cn:
-            self._log('通货降级: {} -> {}（精度损失控制在 {}% 内）'.format(
+            self._log('通货切换: {} -> {}（精度损失控制在 {}% 内）'.format(
                 currency_cn, target_cn, int(PRECISION_MAX_LOSS * 100)))
 
         # 5. 键入新价格（先全选覆盖旧数字）
