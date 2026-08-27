@@ -422,7 +422,7 @@ class WaystoneCrafter(QObject):
                 x, y = self._grid.get_cell_center(col, row)
 
                 # 移到格子并 Ctrl+C 读取道具信息，返回本格应应用通货的次数（0 表示跳过）
-                apply_count = self._analyze_and_prepare(x, y, currency)
+                apply_count = self._analyze_and_prepare(col, row, x, y, currency)
                 if apply_count <= 0:
                     continue
 
@@ -437,7 +437,7 @@ class WaystoneCrafter(QObject):
 
         self._status_changed.emit('批量完成')
 
-    def _analyze_and_prepare(self, x, y, currency: EnumCurrency) -> int:
+    def _analyze_and_prepare(self, col, row, x, y, currency: EnumCurrency) -> int:
         """移到格子中心，返回本格应应用通货的次数（0 表示跳过）。
 
         瓦尔宝珠不做剪贴板分析，直接应用，加快速度；其余通货用 Ctrl+C
@@ -483,7 +483,9 @@ class WaystoneCrafter(QObject):
             if count <= 0:
                 self._status_changed.emit('  词缀已满（{} 条），无法使用崇高石，跳过'.format(affix_count))
                 return 0
-            self._status_changed.emit('  词缀 {} 条，应用崇高石 {} 次'.format(affix_count, count))
+            self._status_changed.emit(
+                '  [崇高石] 格子({},{}) 已腐化=否 原词缀数={} 应使用崇高石={} 次'
+                .format(col, row, affix_count, count))
             return count
 
         return currency.apply_count
